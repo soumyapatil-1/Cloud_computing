@@ -7,7 +7,7 @@
 
 ---
 
-## Executive Summary
+## Summary
 
 This repository contains the complete experimental setup, empirical benchmark data, performance visualization, and technical report comparing the CPU performance of a **Type-1 Bare-Metal Hypervisor (Proxmox VE)** and a **Type-2 Hosted Hypervisor (VMware Workstation)**.
 
