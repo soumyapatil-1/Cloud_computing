@@ -1,0 +1,32 @@
+services:
+
+  order-service:
+    build: ./order-service
+    ports:
+      - "5000:5000"
+    environment:
+      USER_SERVICE: http://user-service:5001
+      FOOD_SERVICE: http://food-service:5002
+    depends_on:
+      - user-service
+      - food-service
+    networks:
+      - app-network
+
+  user-service:
+    build: ./user-service
+    ports:
+      - "5001:5001"
+    networks:
+      - app-network
+
+  food-service:
+    build: ./food-service
+    ports:
+      - "5002:5002"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
