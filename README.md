@@ -19,7 +19,23 @@ and laboratory work completed for the **Cloud Computing / Computer Networks Cour
 5. [Docker Deployment](#5-docker-deployment)
 6. [Inter-Service Communication](#6-inter-service-communication)
 7. [Workload Testing](#7-workload-testing)
-8. [Performance Results](#8-performance-results)
+8. [## Performance Graphs
+
+### 1. Concurrency vs Average Response Time
+
+![Concurrency vs Average Response Time](images/concurrency_vs_response_time.png)
+
+### 2. Concurrency vs Throughput
+
+![Concurrency vs Throughput](images/concurrency_vs_throughput.png)
+
+### 3. Concurrency vs CPU Utilization
+
+![Concurrency vs CPU Utilization](images/concurrency_vs_cpu.png)
+
+### 4. Concurrency vs Memory Utilization
+
+![Concurrency vs Memory Utilization](images/concurrency_vs_memory.png)](#8-performance-results)
 9. [Analysis](#9-analysis)
 10. [Repository Structure](#10-repository-structure)
 11. [How to Run the Microservices Application](#11-how-to-run-the-microservices-application)
