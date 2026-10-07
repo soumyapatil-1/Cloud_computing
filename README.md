@@ -1,357 +1,578 @@
-# Performance Analysis of Type-1 and Type-2 Hypervisors
+# Cloud Computing Laboratory Repository
 
-[![Course](https://img.shields.io/badge/Course-Cloud%20Computing%20%2F%20Computer%20Networks-blue.svg)](#)
-[![Hypervisors](https://img.shields.io/badge/Hypervisors-Proxmox%20VE%20%7C%20VMware%20Workstation-orange.svg)](#)
-[![Benchmark](https://img.shields.io/badge/Benchmark-Sysbench%20CPU%2020k%20Primes-green.svg)](#)
-[![Status](https://img.shields.io/badge/Status-Completed-brightgreen.svg)](#)
+![Course](https://img.shields.io/badge/Course-Cloud%20Computing%20%2F%20Computer%20Networks-blue.svg)
+![Status](https://img.shields.io/badge/Status-Completed-brightgreen.svg)
+![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED.svg)
+![Microservices](https://img.shields.io/badge/Architecture-Microservices-orange.svg)
 
----
-
-## Summary
-
-This repository contains the complete experimental setup, empirical benchmark data, performance visualization, and technical report comparing the CPU performance of a **Type-1 Bare-Metal Hypervisor (Proxmox VE)** and a **Type-2 Hosted Hypervisor (VMware Workstation)**.
-
-Both hypervisors were deployed with identically configured **Ubuntu Virtual Machines** (2 vCPU, 2 GB RAM, 20 GB Disk). The standard `sysbench` CPU prime-number calculation benchmark (`--cpu-max-prime=20000`) was executed on both virtual machines under identical workload conditions.
-
-### Key Finding
-
-> **Proxmox VE (Type-1 Hypervisor) achieved 1,716.69 Events/sec compared to VMware Workstation's 1,364.78 Events/sec — demonstrating a +25.79% throughput advantage and a 20.55% reduction in average latency.**
+This repository contains the experiments, implementations, performance analysis,
+and laboratory work completed for the **Cloud Computing / Computer Networks Course**.
 
 ---
 
-## Table of Contents
+# Table of Contents
 
-1. [Project Objectives](#1-project-objectives)
-2. [Hypervisor Architectural Comparison](#2-hypervisor-architectural-comparison)
-3. [Virtual Machine Specifications](#3-virtual-machine-specifications)
-4. [Experimental Procedure](#4-experimental-procedure)
-5. [Empirical Results & Screenshots](#5-empirical-results--screenshots)
-6. [Performance Comparison Table](#6-performance-comparison-table)
-7. [Metric Explanations & Visualizations](#7-metric-explanations--visualizations)
-8. [Technical Analysis & Discussion](#8-technical-analysis--discussion)
-9. [Conclusion & Engineering Takeaways](#9-conclusion--engineering-takeaways)
-10. [Repository Structure & Reproduction](#10-repository-structure--reproduction)
-
----
-
-## 1. Project Objectives
-
-The primary objectives of this Cloud Computing laboratory experiment are:
-
-1. **Deployment**: Provision two identical Ubuntu Virtual Machines across different hypervisor architectures:
-   - **Type-1 (Bare-Metal)**: Proxmox VE (Kernel-based Virtual Machine / KVM)
-   - **Type-2 (Hosted)**: VMware Workstation Pro on a Windows Host OS
-2. **Standardization**: Enforce uniform hardware resource allocations (2 vCPU, 2048 MB RAM, 20 GB Virtual Storage) to ensure direct comparability.
-3. **Benchmarking**: Execute the `sysbench` CPU computational benchmark using 20,000 prime numbers to stress test CPU virtualization efficiency.
-4. **Metric Collection**: Capture execution time, total events processed, throughput (events/sec), and latency statistics (min, avg, max, 95th percentile).
-5. **Architectural Evaluation**: Quantify the performance overhead introduced by host operating system abstraction layers in Type-2 hypervisors versus bare-metal hypervisor execution.
+1. [Repository Overview](#1-repository-overview)
+2. [Experiment 1 - Hypervisor Performance Analysis](#2-experiment-1---hypervisor-performance-analysis)
+3. [Experiment 2 - Online Food Delivery Microservices](#3-experiment-2---online-food-delivery-microservices)
+4. [Microservices Architecture](#4-microservices-architecture)
+5. [Docker Deployment](#5-docker-deployment)
+6. [Inter-Service Communication](#6-inter-service-communication)
+7. [Workload Testing](#7-workload-testing)
+8. [Performance Results](#8-performance-results)
+9. [Analysis](#9-analysis)
+10. [Repository Structure](#10-repository-structure)
+11. [How to Run the Microservices Application](#11-how-to-run-the-microservices-application)
+12. [Conclusion](#12-conclusion)
 
 ---
 
-## 2. Hypervisor Architectural Comparison
+# 1. Repository Overview
 
-### Type-1 Hypervisor — Proxmox VE (Bare-Metal Architecture)
+This repository contains Cloud Computing laboratory experiments involving:
 
-Proxmox VE runs directly on the bare-metal physical host hardware. The Linux kernel integrated with KVM (Kernel-based Virtual Machine) acts as the hypervisor. Guest operating system instructions execute directly on hardware CPU VT-x/AMD-V extensions without passing through an intermediate desktop operating system.
+- Virtualization and hypervisors
+- Type-1 and Type-2 hypervisor performance comparison
+- Docker containers
+- Docker Compose
+- Microservice architecture
+- Inter-service communication
+- Workload testing
+- Performance monitoring
+- CPU and memory analysis
 
-```mermaid
-graph TD
-    subgraph Physical_Hardware["Physical Hardware (CPU, Memory, Storage, NIC)"]
-    end
-    
-    subgraph Type1_Layer["Proxmox VE Hypervisor (Bare-Metal OS & KVM Kernel)"]
-    end
-    
-    subgraph Guest_VM1["Ubuntu 24.04 Virtual Machine (CC-Experiment1-type1)"]
-        Sysbench1["Sysbench CPU Benchmark"]
-    end
-    
-    Physical_Hardware --> Type1_Layer
-    Type1_Layer --> Guest_VM1
-```
-
-```
-+-------------------------------------------------------------------+
-|               Ubuntu Virtual Machine (Type-1 Guest)               |
-+-------------------------------------------------------------------+
-|               Proxmox VE Hypervisor (Linux Kernel / KVM)          |
-+-------------------------------------------------------------------+
-|                 Physical Server Hardware (Bare Metal)             |
-+-------------------------------------------------------------------+
-```
+The experiments demonstrate concepts related to virtualization,
+containerization, distributed services, deployment, and performance analysis.
 
 ---
 
-### Type-2 Hypervisor — VMware Workstation (Hosted Architecture)
-
-VMware Workstation runs as an application process on top of a host operating system (Windows 11/10). CPU requests from the guest VM must navigate through the VMware VMM engine, translate through host OS system calls, and be scheduled by the Windows NT kernel scheduler before reaching physical hardware.
-
-```mermaid
-graph TD
-    subgraph Physical_Hardware2["Physical Hardware (CPU, Memory, Storage, NIC)"]
-    end
-
-    subgraph Host_OS["Host Operating System (Windows 11 / Windows NT Kernel)"]
-    end
-    
-    subgraph Type2_Layer["VMware Workstation (Type-2 Hypervisor Application)"]
-    end
-    
-    subgraph Guest_VM2["Ubuntu Virtual Machine (CC-Experiment1-Type2)"]
-        Sysbench2["Sysbench CPU Benchmark"]
-    end
-    
-    Physical_Hardware2 --> Host_OS
-    Host_OS --> Type2_Layer
-    Type2_Layer --> Guest_VM2
-```
+# 2. Experiment 1 - Hypervisor Performance Analysis
+
+## Title
+
+**Performance Analysis of Type-1 and Type-2 Hypervisors**
+
+## Objective
+
+The objective of this experiment is to compare the performance of:
+
+- **Type-1 Hypervisor:** Proxmox VE
+- **Type-2 Hypervisor:** VMware Workstation
 
-```
-+-------------------------------------------------------------------+
-|               Ubuntu Virtual Machine (Type-2 Guest)               |
-+-------------------------------------------------------------------+
-|               VMware Workstation (Virtual Machine Monitor)        |
-+-------------------------------------------------------------------+
-|               Host Operating System (Windows 11 / 10)             |
-+-------------------------------------------------------------------+
-|                        Physical PC Hardware                       |
-+-------------------------------------------------------------------+
-```
+Identically configured Ubuntu Virtual Machines were used for the comparison.
 
----
+The benchmark was performed using the `sysbench` CPU benchmark.
 
-## 3. Virtual Machine Specifications
+## Virtual Machine Configuration
 
-To guarantee scientific accuracy and eliminate resource skewing, identical configurations were assigned to both VMs:
+| Resource | Proxmox VE | VMware Workstation |
+|---|---|---|
+| Hypervisor Type | Type-1 / Bare-Metal | Type-2 / Hosted |
+| Guest OS | Ubuntu | Ubuntu |
+| CPU | 2 vCPU | 2 vCPU |
+| RAM | 2 GB | 2 GB |
+| Disk | 20 GB | 20 GB |
+| Benchmark | Sysbench CPU | Sysbench CPU |
+| CPU Benchmark Limit | 20,000 Primes | 20,000 Primes |
 
-| Resource Parameter | Proxmox VE (Type-1) | VMware Workstation (Type-2) | Status |
-| :--- | :--- | :--- | :--- |
-| **Virtual Machine Name** | `CC-Experiment1-type1` | `CC-Experiment1-Type2` | Standardized |
-| **VM Identifier** | `VMID 123` | `janzz-virtual-machine` | Standardized |
-| **Guest Operating System** | Ubuntu 24.04.3 LTS AMD64 | Ubuntu Linux 64-bit | Standardized |
-| **CPU Allocation** | 2 vCPU (1 Socket, 2 Cores) | 2 vCPU (1 Processor, 2 Cores) | Identical |
-| **CPU Type / Model** | `x86-64-v2-AES` | Host Passthrough / Default | Hardware Matched |
-| **RAM Allocation** | 2048 MiB (2.0 GB) | 2048 MB (2.0 GB) | Identical |
-| **Virtual Disk Capacity** | 20.0 GB | 20.0 GB | Identical |
-| **Virtual Network Adapter**| VirtIO (`vmbr0`) | NAT (`VMnet8`) | Standardized |
-| **Benchmark Tool** | `sysbench 1.0.20` | `sysbench 1.0.20` | Identical |
+## Architecture
 
----
+### Type-1 Hypervisor
 
-## 4. Experimental Procedure
+```text
+Physical Hardware
+       |
+       v
+Proxmox VE / KVM
+       |
+       v
+Ubuntu Virtual Machine
+       |
+       v
+Sysbench CPU Benchmark
+Type-2 Hypervisor
+Physical Hardware
+       |
+       v
+Host Operating System
+       |
+       v
+VMware Workstation
+       |
+       v
+Ubuntu Virtual Machine
+       |
+       v
+Sysbench CPU Benchmark
+Performance Result
+Performance Metric	Proxmox VE	VMware Workstation
+Total Execution Time	10.0004 s	10.0007 s
+Total Events	17,169	13,650
+Events per Second	1,716.69	1,364.78
+Minimum Latency	0.57 ms	0.67 ms
+Average Latency	0.58 ms	0.73 ms
+95th Percentile Latency	0.65 ms	0.89 ms
+Maximum Latency	2.78 ms	4.06 ms
+Observation
 
-### Step 1: Virtual Machine Creation & Setup
+The experiment showed that Proxmox VE achieved higher CPU throughput
+and lower latency than VMware Workstation for the tested CPU workload.
 
-1. **Proxmox VE (Type-1)**:
-   - Navigated to `https://10.11.0.252:8006` via browser.
-   - Initialized `Create VM` wizard (VM ID: `123`, Name: `CC-Experiment1-type1`).
-   - Attached Ubuntu 24.04 ISO, assigned 2 Cores, 2048 MiB RAM, 20 GB VirtIO disk, and `vmbr0` network bridge.
-   - Completed standard Ubuntu server/desktop installation.
+The measured throughput advantage of Proxmox VE was approximately 25.79%.
 
-2. **VMware Workstation (Type-2)**:
-   - Launched VMware Workstation application on Windows host.
-   - Selected `Typical Configuration` wizard.
-   - Mounted Ubuntu ISO, set name to `CC-Experiment1-Type2`.
-   - Specified 20 GB virtual disk, configured 1 Processor with 2 Cores (2 vCPU total), 2 GB RAM, and NAT adapter.
-   - Completed standard Ubuntu installation.
+3. Experiment 2 - Online Food Delivery Microservices
+Title
 
-### Step 2: System Configuration Verification
+Build, Deploy and Analyze a Containerized Microservice Application Under Varying Workloads
 
-On both guest OS terminals, system specs were verified prior to testing:
+Application Domain
 
-```bash
-# 1. Verify Hostname & System Architecture
-hostnamectl
+Online Food Delivery / Online Food Ordering System
 
-# 2. Verify CPU Topology & Core Allocation
-lscpu
+Objective
 
-# 3. Verify Memory Allocation
-free -h
+The objective of this experiment is to design, develop, containerize,
+deploy, and analyze an application consisting of independent microservices.
 
-# 4. Verify Disk Partition Allocation
-df -h
+The application demonstrates:
 
-# 5. Monitor Real-time Process & System Load
-top
-```
+Microservice architecture
+REST APIs
+Docker containerization
+Docker Compose
+Inter-service communication
+Workload testing
+CPU and memory monitoring
+Performance analysis under different concurrency levels
+Microservices
 
-### Step 3: Sysbench Benchmark Installation & Execution
+The application contains exactly three independent microservices.
 
-```bash
-# Package Index Update & Sysbench Installation
-sudo apt update && sudo apt install sysbench -y
+1. User Service
 
-# Verify Version
-sysbench --version
+Responsibility:
 
-# Execute CPU Benchmark (Prime Calculation up to 20,000)
-sysbench cpu --cpu-max-prime=20000 run
-```
+Manages user information.
 
----
+Port:
 
-## 5. Empirical Results & Screenshots
+5001
 
-### Type-1 Hypervisor Screenshot (Proxmox VE)
+REST API:
 
-Below is the verified screenshot [`images/1.png`](file:///D:/Sem_5/CC/images/1.png) captured directly from the Proxmox VE noVNC web console:
+GET /user/<user_id>
 
-![Proxmox VE Type-1 Sysbench Result](images/1.png)
+Example:
 
-*Figure 1: Proxmox VE (Type-1 Hypervisor) Sysbench Benchmark Console Output.*
+http://localhost:5001/user/1
 
----
+Example response:
 
-### Type-2 Hypervisor Screenshot (VMware Workstation)
+{
+    "user_id": 1,
+    "name": "Soumya",
+    "status": "Active"
+}
+2. Food Service
 
-Below is the verified screenshot [`images/2.png`](file:///D:/Sem_5/CC/images/2.png) captured directly from VMware Workstation:
+Responsibility:
 
-![VMware Workstation Type-2 Sysbench Result](images/2.png)
+Provides food item information.
 
-*Figure 2: VMware Workstation (Type-2 Hypervisor) Sysbench Benchmark Terminal Output.*
+Port:
 
----
+5002
 
-## 6. Performance Comparison Table
+REST API:
 
-The following table summarizes the exact values recorded from the experimental benchmark runs:
+GET /food/<food_id>
 
-| Performance Metric | Proxmox VE (Type-1) | VMware Workstation (Type-2) | Performance Delta | Winner / Advantage |
-| :--- | :---: | :---: | :---: | :---: |
-| **Hypervisor Type** | Bare-Metal | Hosted | Architectural | Type-1 Direct Control |
-| **Guest OS** | Ubuntu | Ubuntu | Matched | Identical Baseline |
-| **vCPU Allocation** | 2 vCPU | 2 vCPU | Matched | Identical Compute |
-| **RAM Allocation** | 2 GB | 2 GB | Matched | Identical Memory |
-| **Disk Capacity** | 20 GB | 20 GB | Matched | Identical Storage |
-| **Benchmark Limit** | 20,000 Primes | 20,000 Primes | Matched | Identical Stress Test |
-| **Total Execution Time** | **10.0004 s** | **10.0007 s** | ~0.003% difference | Fixed 10s Window |
-| **Total Events Processed** | **17,169** | **13,650** | **+3,519 events (+25.78%)** | **Proxmox VE (Type-1)** |
-| **Events per Second (EPS)** | **1,716.69** | **1,364.78** | **+351.91 eps (+25.78%)** | **Proxmox VE (Type-1)** |
-| **Minimum Latency** | **0.57 ms** | **0.67 ms** | **-0.10 ms (-14.93%)** | **Proxmox VE (Faster)** |
-| **Average Latency** | **0.58 ms** | **0.73 ms** | **-0.15 ms (-20.55%)** | **Proxmox VE (Lower)** |
-| **95th Percentile Latency**| **0.65 ms** | **0.89 ms** | **-0.24 ms (-26.97%)** | **Proxmox VE (More Consistent)**|
-| **Maximum Latency** | **2.78 ms** | **4.06 ms** | **-1.28 ms (-31.53%)** | **Proxmox VE (Fewer Spikes)** |
+Example:
 
----
+http://localhost:5002/food/1
 
-## 7. Metric Explanations & Visualizations
+Example response:
 
-### Performance Metric Definitions
+{
+    "food_id": 1,
+    "food": "Pizza",
+    "price": 250
+}
+3. Order Service
 
-1. **Total Execution Time (seconds)**: The wall-clock duration taken to execute the Sysbench workload. Standardized to ~10 seconds.
-2. **Events per Second (Throughput / EPS)**: The number of prime number calculation iterations completed per second. **Higher is better.**
-3. **Total Events**: Total number of prime verification cycles executed during the test duration. **Higher is better.**
-4. **Latency (milliseconds)**: Time elapsed per event execution:
-   - **Minimum Latency**: The fastest event execution time.
-   - **Average Latency**: Arithmetic mean of all event processing times.
-   - **95th Percentile Latency**: The latency threshold below which 95% of all events fell. Critical for evaluating response consistency.
-   - **Maximum Latency**: The worst-case event delay, highlighting thread scheduling latency spikes.
+Responsibility:
 
----
+Creates an order by communicating with the User Service
+and Food Service.
 
-### Chart 1: CPU Throughput Comparison (Events / Sec)
+Port:
 
-![CPU Throughput Comparison](images/events_per_second_comparison.png)
+5000
 
-*Figure 3: CPU Throughput comparison showing Proxmox VE (+25.79% faster).*
+REST API:
 
----
+GET /order/<user_id>/<food_id>
 
-### Chart 2: CPU Latency Metrics Comparison
+Example:
 
-![Latency Comparison](images/latency_comparison.png)
+http://localhost:5000/order/1/1
 
-*Figure 4: Latency comparison (Min, Avg, 95th Percentile, Max) across both hypervisors.*
+The Order Service requests user information from the User Service
+and food information from the Food Service before creating the order response.
 
----
+4. Microservices Architecture
 
-### Chart 3: Total Events Processed
+The application follows the following architecture:
 
-![Total Events Comparison](images/total_events_comparison.png)
+                     Client
+                       |
+                       v
+              +----------------+
+              | Order Service  |
+              |    Port 5000   |
+              +----------------+
+                    /     \
+                   /       \
+                  v         v
+        +---------------+  +---------------+
+        | User Service  |  | Food Service  |
+        |   Port 5001   |  |   Port 5002   |
+        +---------------+  +---------------+
+Request Flow
+Client
+  |
+  | GET /order/1/1
+  v
+Order Service
+  |
+  |----> User Service
+  |       |
+  |       └── User details
+  |
+  |----> Food Service
+          |
+          └── Food details
+  |
+  v
+Order Created Successfully
+5. Docker Deployment
 
-*Figure 5: Total Events completed in 10 seconds (17,169 vs 13,650).*
+Each microservice has its own Dockerfile.
 
----
+User Service
+    |
+    └── Dockerfile
 
-### Chart 4: Comprehensive Performance Dashboard
+Food Service
+    |
+    └── Dockerfile
 
-![Overall Performance Dashboard](images/overall_performance_dashboard.png)
+Order Service
+    |
+    └── Dockerfile
 
-*Figure 6: Multi-panel performance evaluation dashboard.*
+Docker Compose is used to deploy all three services together.
 
----
+The services communicate using a Docker bridge network:
 
-## 8. Technical Analysis & Discussion
+app-network
 
-The empirical data demonstrates a clear performance superiority of **Proxmox VE (Type-1)** over **VMware Workstation (Type-2)** in CPU-bound computational workloads.
+The service names are used for communication between containers.
 
-### 1. Architectural Overhead & Trap-and-Emulate Delays
-- **Proxmox VE (Type-1)** utilizes Linux KVM, which interfaces directly with hardware Intel VT-x / AMD-V virtualization extensions. CPU instructions generated inside the VM execute directly in VMX root mode with minimal hypervisor interception.
-- **VMware Workstation (Type-2)** operates on top of Windows NT OS. Privileged guest CPU operations undergo double translation: first through VMware's VMM virtualization engine, and second through Windows kernel user-to-kernel mode context transitions (`NtSystemService`).
+For example:
 
-### 2. CPU Scheduling & Context Switching
-- In Proxmox VE, guest vCPUs map directly to host Linux kernel POSIX threads scheduled by the **Completely Fair Scheduler (CFS)** operating at Ring 0.
-- In VMware Workstation, guest CPU execution competes with Windows host background services (e.g., Windows Defender, System Updates, Desktop Window Manager). The host OS scheduler introduces thread preemptions, leading to higher latency spikes (Max Latency: 4.06 ms on VMware vs 2.78 ms on Proxmox).
+http://user-service:5001
+http://food-service:5002
 
-### 3. Memory & Virtual Cache Access
-- Proxmox VE benefits from direct Extended Page Tables (EPT / NPT) hardware translation.
-- Type-2 hypervisors incur memory address translation penalties when mapping Guest Physical Address (GPA) $\rightarrow$ Host Virtual Address (HVA) $\rightarrow$ Host Physical Address (HPA).
+and:
 
----
+http://food-service:5002
 
-## 9. Conclusion & Engineering Takeaways
+This allows the Order Service to communicate with the other services
+without using localhost inside the Docker network.
 
-1. **Bare-metal dominance**: Proxmox VE (Type-1) delivers **+25.79% higher CPU throughput** and **20.55% lower average latency** compared to VMware Workstation (Type-2).
-2. **Predictable Latency**: Proxmox VE exhibits lower 95th percentile latency (0.65 ms vs 0.89 ms), making Type-1 hypervisors essential for latency-critical production enterprise workloads.
-3. **Use-Case Recommendation**:
-   - **Type-1 (Proxmox VE / KVM / ESXi)**: Recommended for Cloud Data Centers, Production Enterprise Infrastructure, Database Servers, and High-Performance Computing (HPC).
-   - **Type-2 (VMware Workstation / VirtualBox)**: Recommended for Local Software Development, Testing, Desktop Sandbox Environments, and Educational Labs.
+Docker Compose Services
+order-service
+user-service
+food-service
+Port Mapping
+Service	Container Port	Host Port
+Order Service	5000	5000
+User Service	5001	5001
+Food Service	5002	5002
+6. Inter-Service Communication
 
----
+The Order Service communicates with the User Service and Food Service
+using HTTP REST requests.
 
-## 10. Repository Structure & Reproduction
+Inside Docker Compose, service names are used as hostnames.
 
-### Folder Layout
+Order Service
+      |
+      +------> user-service:5001
+      |
+      +------> food-service:5002
 
-```
+Communication was tested from inside the Order Service container.
+
+Example:
+
+User Service response:
+{'name': 'Soumya', 'status': 'Active', 'user_id': 1}
+
+Food Service response:
+{'food': 'Pizza', 'price': 250, 'food_id': 1}
+
+The successful response confirms that the microservices can communicate
+through the Docker network.
+
+7. Workload Testing
+
+A Python workload testing program was developed using:
+
+Python
+Requests
+ThreadPoolExecutor
+
+The following concurrency levels were tested:
+
+1
+2
+4
+8
+16
+
+Each test used:
+
+20 total requests
+
+The following metrics were recorded:
+
+Average response time
+Throughput
+Failed requests
+CPU utilization
+Memory utilization
+
+The workload testing scripts are:
+
+load_test.py
+monitor_test.py
+8. Performance Results
+
+The following results were obtained during the workload testing experiment.
+
+Concurrency	Avg Response Time (s)	Throughput (req/s)	Failed Requests	Order CPU (%)	Order Memory (MiB)
+1	0.0096	8.81	0	3.93	30.03
+2	0.0138	10.13	0	0.02	30.36
+4	0.0223	9.87	0	0.02	30.08
+8	0.0336	9.90	0	0.02	30.06
+16	0.0485	9.89	0	0.08	30.12
+Other Microservices
+User Service
+Concurrency	CPU (%)	Memory (MiB)
+1	1.24	25.15
+2	0.01	25.18
+4	0.02	25.17
+8	0.02	25.17
+16	0.03	25.18
+Food Service
+Concurrency	CPU (%)	Memory (MiB)
+1	0.02	25.11
+2	0.02	25.20
+4	0.02	25.13
+8	0.02	25.18
+16	0.03	25.14
+9. Analysis
+Response Time
+
+As concurrency increased from 1 to 16, the average response time increased:
+
+0.0096 s  →  0.0485 s
+
+This shows that higher concurrent workload resulted in increased response time.
+
+Throughput
+
+Throughput increased initially and then remained approximately stable:
+
+8.81 req/s
+10.13 req/s
+9.87 req/s
+9.90 req/s
+9.89 req/s
+
+The system achieved its highest measured throughput at concurrency 2.
+
+After that, throughput remained close to 10 requests per second
+under the tested workload and monitoring setup.
+
+Failed Requests
+
+All tested concurrency levels produced:
+
+0 failed requests
+
+This indicates that all 20 requests at each tested concurrency level
+were successfully completed.
+
+CPU Utilization
+
+CPU utilization remained low during the workload.
+
+The Order Service showed the highest measured CPU activity among
+the three services at some test levels.
+
+Memory Utilization
+
+Memory usage remained almost constant as concurrency increased.
+
+The Order Service used approximately:
+
+30 MiB
+
+while the User Service and Food Service used approximately:
+
+25 MiB
+
+during the tests.
+
+Overall Observation
+
+The application successfully handled the tested workloads without
+request failures.
+
+Increasing concurrency increased response time, while throughput
+remained relatively stable after the initial increase.
+
+10. Repository Structure
+
+The current repository is organized as follows:
+
 Cloud_computing/
 │
-├── README.md                                  # Main Project & Benchmark Report
-├── LAB_REPORT.md                              # Formal Academic Lab Report Submission
-├── Lab-Manual-Hypervisor-Performance-Analysis (1).docx  # Reference Lab Manual Document
+├── README.md
+├── LAB_REPORT.md
 │
-├── images/                                    # Screenshots & Generated Charts
-│   ├── 1.png                                  # Proxmox VE Sysbench Result Screenshot
-│   ├── 2.png                                  # VMware Workstation Sysbench Result Screenshot
-│   ├── events_per_second_comparison.png       # Throughput Comparison Graph
-│   ├── latency_comparison.png                 # Latency Metrics Graph
-│   ├── total_events_comparison.png            # Total Events Graph
-│   └── overall_performance_dashboard.png      # Multi-panel Dashboard
+├── images/
+│   └── Existing experiment screenshots and graphs
 │
-└── scripts/                                   # Automation & Plotting Scripts
-    ├── benchmark.sh                           # Sysbench Automation Script
-    ├── generate_plots.py                      # Matplotlib Visualization Generator
-    └── parse_sysbench.py                      # Results Parser & Ratio Calculator
-```
+├── scripts/
+│   └── Existing experiment scripts
+│
+├── vm-vs-container/
+│   └── Existing virtualization-related experiment files
+│
+└── online-food-microservices/
+    │
+    ├── docker-compose.yml
+    ├── load_test.py
+    ├── monitor_test.py
+    │
+    ├── order-service/
+    │   ├── app.py
+    │   ├── Dockerfile
+    │   └── requirements.txt
+    │
+    ├── user-service/
+    │   ├── app.py
+    │   ├── Dockerfile
+    │   └── requirements.txt
+    │
+    └── food-service/
+        ├── app.py
+        ├── Dockerfile
+        └── requirements.txt
+11. How to Run the Microservices Application
+Step 1: Open the project directory
+cd online-food-microservices
+Step 2: Build the Docker images
+docker compose build
+Step 3: Start all services
+docker compose up -d
+Step 4: Check running containers
+docker ps
 
-### How to Reproduce
+The following three services should be running:
 
-1. **Run Benchmark Script on VM**:
-   ```bash
-   chmod +x scripts/benchmark.sh
-   ./scripts/benchmark.sh
-   ```
+order-service
+user-service
+food-service
+Step 5: Test the services
+User Service
 
-2. **Generate Plots**:
-   ```bash
-   python scripts/generate_plots.py
-   ```
+Open:
 
-3. **Parse & Compare Results**:
-   ```bash
-   python scripts/parse_sysbench.py
-   ```
+http://localhost:5001/user/1
+Food Service
 
----
-*Laboratory Experiment conducted for Cloud Computing / Computer Networks Course.*
+Open:
+
+http://localhost:5002/food/1
+Order Service
+
+Open:
+
+http://localhost:5000/order/1/1
+
+The Order Service should return a successful order response containing
+the user and food information.
+
+Step 6: Run Workload Test
+
+From the online-food-microservices directory:
+
+python load_test.py
+
+For CPU and memory monitoring:
+
+python monitor_test.py
+Step 7: Stop the Containers
+docker compose down
+12. Conclusion
+
+This Cloud Computing laboratory work demonstrates two important areas
+of cloud infrastructure and deployment.
+
+The first experiment compares the performance of Type-1 and Type-2
+hypervisors using identical Ubuntu virtual machines and a CPU benchmark.
+
+The second experiment demonstrates a containerized microservice
+application for an Online Food Delivery system.
+
+The Online Food Delivery application consists of three independent
+services:
+
+User Service
+Food Service
+Order Service
+
+Docker and Docker Compose were used to containerize and deploy the
+services. The services communicated through a Docker bridge network
+using service names.
+
+Workload testing was performed at five concurrency levels:
+
+1, 2, 4, 8, 16
+
+The application successfully completed all tested requests with
+zero failures. Response time increased with concurrency, while
+throughput remained relatively stable after the initial increase.
+CPU and memory utilization remained low and memory usage remained
+nearly constant.
+
+Overall, the experiments demonstrate concepts of:
+
+Virtualization
+Hypervisors
+Containerization
+Microservices
+Docker
+Docker Compose
+REST APIs
+Inter-service communication
+Workload testing
+Resource monitoring
+Performance analysis
+
+Laboratory Experiment conducted for Cloud Computing / Computer Networks Course.
